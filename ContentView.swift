@@ -58,7 +58,7 @@ struct ContentView: View {
             
             let db = CKContainer.init(identifier: "iCloud.CloudKitPractice2022").publicCloudDatabase
             
-            let date_start = Date()
+            var date_start = Date()
             var date_finish = TimeInterval()
             
             let predicate = NSPredicate(format: "TRUEPREDICATE")
@@ -76,10 +76,11 @@ struct ContentView: View {
             }
             
             for loop in 1...100 {
-                // We 'sleep' here to simulate user inactivity for 2000ms
-                Thread.sleep(forTimeInterval: 2.000)
+                // We 'sleep' here to simulate user inactivity for 750ms
+                Thread.sleep(forTimeInterval: 0.750)
                 
                 if (qCursor != nil) {
+                    
                     db.fetch(withCursor: qCursor!, resultsLimit: 50) { (recordResults2) -> Void in
                         date_finish = -date_start.timeIntervalSinceNow
                         qCursor = try! recordResults2.get().queryCursor
@@ -93,6 +94,25 @@ struct ContentView: View {
                     break
                 }
             }
+            
+            print("*** Interdependent Fetches *** ")
+            let ckRecordID = [ CKRecord.init(recordType: "Tweet").recordID ]
+            // let loopedFetches = Array(repeating: CKFetchRecordsOperation(recordIDs: ckRecordID), count: 1)
+            //    print(" - CKFetchRecordsOperation of Tweets") }, count: 8)
+            let loopedFetches = CKFetchRecordsOperation(recordIDs: ckRecordID)
+            
+            // for iter in 0..<loopedFetches.count {
+                loopedFetches.desiredKeys = [ "Tweet" ]
+                loopedFetches.database = db
+            loopedFetches.fetchRecordsResultBlock = { _ in print(" - CKFetchRecordsOperation of Tweets") }
+                // loopedFetches[iter].addDependency(loopedFetches[iter - 1])
+            // }
+            
+            date_start = Date()
+            let queue = OperationQueue()
+            queue.addOperations([loopedFetches], waitUntilFinished: true)
+            date_finish = -date_start.timeIntervalSinceNow
+            print("Interdependent Fetch Time:", date_finish)
             
             db.perform(query, inZoneWith: nil) { (records, error) -> Void in
                 if error == nil {
